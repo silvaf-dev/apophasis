@@ -1,0 +1,37 @@
+# Source
+src/
+
+# Config & tooling
+tsconfig.json
+
+# Local/dev files
+node_modules/
+.gitignore
+LICENSE
+
+# Logs & env
+*.log
+.env
+.env.*
+
+# OS / editor junk
+.DS_Store
+.vscode/
+.idea/
+
+.DS_Store
+dist
+package-lock.json
+.github
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+playwright.config.ts
+tests
+
+# Apophasis
+apophasis-report
