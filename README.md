@@ -23,6 +23,19 @@ This is effectively a **negative-space validation** of your test suite.
 
 ---
 
+## Try It!
+
+```bash
+git clone git@github.com:silvaf-dev/apophasis.git
+npm init playwright@latest
+npm run build
+npx apophasis
+```
+
+Bear witness to the second test surviving the mutation!
+
+---
+
 ## 🧠 Why "Apophasis"?
 
 In philosophy and theology, *apophasis* (via negativa) describes something by stating what it is not.
