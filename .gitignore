@@ -1,7 +1,7 @@
 .DS_Store
 dist
 package-lock.json
-.github
+.github/workflows/playwright.yml
 
 # Playwright
 node_modules/
@@ -10,8 +10,7 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
-playwright.config.ts
-tests
 
 # Apophasis
 apophasis-report
+apophasis.log
