@@ -23,7 +23,7 @@ This is effectively a **negative-space validation** of your test suite.
 
 ---
 
-## 🧠 Why "Apophasis"?
+## 🧠 Why "Apophasis"? 
 
 In philosophy and theology, *apophasis* (via negativa) describes something by stating what it is not.
 
