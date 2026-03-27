@@ -24,11 +24,14 @@ jobs:
         run: git clone https://github.com/silvaf-dev/apophasis.git
 
       - name: Install Playwright
-        run: npx playwright install --with-deps
+        run: npx playwright install
 
       - name: Build Apophasis
         working-directory: ./apophasis
         run: npm install && npm run build
+
+      - name: Install Apophasis locally
+        run: npm install ./apophasis
 
       - name: Run Apophasis
         run: |
