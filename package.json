@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "postbuild": "chmod +x dist/bin.js",
     "apophasis": "node ./dist/bin.js",
     "apophasis:report": "open apophasis-report/apophasis-report.html"
   },

@@ -3,11 +3,17 @@ src/
 
 # Config & tooling
 tsconfig.json
+playwright.config.ts
+
+# Tests
+tests/
+__tests__/
+*.spec.ts
+*.test.ts
 
 # Local/dev files
 node_modules/
 .gitignore
-LICENSE
 
 # Logs & env
 *.log
@@ -19,10 +25,8 @@ LICENSE
 .vscode/
 .idea/
 
-.DS_Store
-dist
-package-lock.json
-.github
+# CI / metadata
+.github/
 
 # Playwright
 /test-results/
@@ -30,8 +34,17 @@ package-lock.json
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
-playwright.config.ts
-tests
 
 # Apophasis
 apophasis-report
+
+# Coverage
+coverage/
+.nyc_output/
+
+# TS build cache
+*.tsbuildinfo
+
+# Temp
+*.tmp
+*.temp

@@ -18,11 +18,18 @@ Module._load = function (request: string, parent: any, isMain: boolean) {
         return new Proxy(actualMatchers, {
           get(matcherTarget, prop, receiver) {
             // 1. Pass through JS internals, Promise methods, and Symbols
-            if (
-              typeof prop !== 'string' ||
-              ['then', 'catch', 'finally', 'constructor', 'asymmetricMatch'].includes(prop)
+            if (typeof prop !== 'string' ||
+              ['then', 'catch', 'finally', 'constructor',
+                'asymmetricMatch'].includes(prop)
             ) {
               return Reflect.get(matcherTarget, prop, receiver);
+            }
+
+            if (prop === 'resolves' || prop === 'rejects') {
+              const next = Reflect.get(matcherTarget, prop, receiver);
+
+              // 🔑 THIS is the missing piece
+              return createMatchersProxy(next);
             }
 
             // --- CASE A: Original assertion HAS .not (Negative -> Positive) ---
@@ -45,7 +52,7 @@ Module._load = function (request: string, parent: any, isMain: boolean) {
 
             // --- CASE B: Original assertion is POSITIVE (Positive -> Negative) ---
             const negatedMatchers = Reflect.get(matcherTarget, 'not');
-            
+
             if (!negatedMatchers) {
               return Reflect.get(matcherTarget, prop, receiver);
             }
@@ -73,7 +80,7 @@ Module._load = function (request: string, parent: any, isMain: boolean) {
         },
         get(target, prop, receiver) {
           if (prop === '_isApophasisMutated') return true;
-          
+
           const value = Reflect.get(target, prop, receiver);
 
           // 2. Intercept expect.soft and expect.poll
