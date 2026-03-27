@@ -25,10 +25,9 @@ Module._load = function (request: string, parent: any, isMain: boolean) {
               return Reflect.get(matcherTarget, prop, receiver);
             }
 
+            // --- SPECIAL CASE: resolves/rejects MUST NOT be inverted ---
             if (prop === 'resolves' || prop === 'rejects') {
               const next = Reflect.get(matcherTarget, prop, receiver);
-
-              // 🔑 THIS is the missing piece
               return createMatchersProxy(next);
             }
 
@@ -38,7 +37,7 @@ Module._load = function (request: string, parent: any, isMain: boolean) {
                 get(baseTarget, baseProp) {
                   const positiveMatcher = Reflect.get(baseTarget, baseProp);
                   if (typeof positiveMatcher === 'function') {
-                    // FIX: Use a Proxy to preserve Playwright's internal function properties/metadata
+                    // Use a Proxy to preserve Playwright's internal function properties/metadata
                     return new Proxy(positiveMatcher, {
                       apply(targetFn, thisArg, argArray) {
                         return Reflect.apply(targetFn, baseTarget, argArray);
@@ -53,14 +52,18 @@ Module._load = function (request: string, parent: any, isMain: boolean) {
             // --- CASE B: Original assertion is POSITIVE (Positive -> Negative) ---
             const negatedMatchers = Reflect.get(matcherTarget, 'not');
 
-            if (!negatedMatchers) {
+            if (
+              !negatedMatchers ||
+              prop === 'resolves' ||
+              prop === 'rejects'
+            ) {
               return Reflect.get(matcherTarget, prop, receiver);
             }
 
             const negatedMatcher = Reflect.get(negatedMatchers, prop);
 
             if (typeof negatedMatcher === 'function') {
-              // FIX: Use a Proxy to preserve Playwright's internal function properties/metadata
+              // Use a Proxy to preserve Playwright's internal function properties/metadata
               return new Proxy(negatedMatcher, {
                 apply(targetFn, thisArg, argArray) {
                   return Reflect.apply(targetFn, negatedMatchers, argArray);
