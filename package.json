@@ -1,0 +1,19 @@
+{
+  "name": "apophasis",
+  "version": "1.0.0",
+  "description": "Negative mutation testing for Playwright",
+  "main": "dist/hook.js",
+  "bin": {
+    "apophasis": "./dist/bin.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "apophasis": "node ./dist/bin.js",
+    "apophasis:report": "open apophasis-report/apophasis-report.html"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
