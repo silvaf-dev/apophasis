@@ -1,7 +1,6 @@
 name: Apophasis Mutation Testing
 
 on:
-  push:
   pull_request:
 
 jobs:
