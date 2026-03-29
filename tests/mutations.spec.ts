@@ -167,4 +167,98 @@ test.describe('Playwright assertions to be mutated', () => {
     await expect.soft(button).not.toBeEnabled();
   });
 
+  test('toBeVisible and not.toBeVisible both pass', async ({ page }) => {
+    await page.setContent(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          .hidden { display: none; }
+        </style>
+      </head>
+      <body>
+        <div id="container"></div>
+
+        <script>
+          const container = document.getElementById('container');
+
+          let toggle = false;
+
+          setInterval(() => {
+            toggle = !toggle;
+
+            container.innerHTML = toggle
+              ? '<h1>Installation</h1>'                    // visible
+              : '<h1 class="hidden">Installation</h1>';   // hidden
+          }, 100);
+        </script>
+      </body>
+    </html>
+  `);
+
+    const locator = page.getByRole('heading', { name: 'Installation' });
+
+    await expect.soft(locator).toBeVisible();
+    await expect.soft(locator).not.toBeVisible();
+  });
+
+  test('toHaveText and not.toHaveText both pass', async ({ page }) => {
+    await page.setContent(`
+    <!DOCTYPE html>
+    <html>
+      <body>
+        <div id="container"></div>
+
+        <script>
+          const container = document.getElementById('container');
+
+          let toggle = false;
+
+          setInterval(() => {
+            toggle = !toggle;
+
+            container.innerHTML = toggle
+              ? '<h1>Installation</h1>'
+              : '<h1>Other</h1>';
+          }, 100);
+        </script>
+      </body>
+    </html>
+  `);
+
+    const locator = page.getByRole('heading');
+
+    await expect.soft(locator).toHaveText('Installation');
+    await expect.soft(locator).not.toHaveText('Installation');
+  });
+
+  test('toHaveAttribute and not.toHaveAttribute both pass', async ({ page }) => {
+    await page.setContent(`
+    <!DOCTYPE html>
+    <html>
+      <body>
+        <div id="container"></div>
+
+        <script>
+          const container = document.getElementById('container');
+
+          let toggle = false;
+
+          setInterval(() => {
+            toggle = !toggle;
+
+            container.innerHTML = toggle
+              ? '<button data-state="active">Click</button>'
+              : '<button data-state="inactive">Click</button>';
+          }, 100);
+        </script>
+      </body>
+    </html>
+  `);
+
+    const locator = page.getByRole('button', { name: 'Click' });
+
+    await expect.soft(locator).toHaveAttribute('data-state', 'active');
+    await expect.soft(locator).not.toHaveAttribute('data-state', 'active');
+  });
 });

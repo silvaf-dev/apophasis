@@ -38,9 +38,11 @@ jobs:
 
       - name: Enforce strict mutation policy
         run: |
-          if grep -Eq "Survived:\s*[1-9]" apophasis.log; then
-            echo "❌ Mutation testing failed: surviving mutants detected"
-            exit 1
+          survivors=$(grep -Eo "Survived:\s*[0-9]+" apophasis.log | grep -Eo "[0-9]+")
+
+          if [ "$survivors" = "9" ]; then
+            echo "✅ Mutation testing passed: exactly 9 survivors"
           else
-            echo "✅ Mutation testing passed: zero survivors"
+            echo "❌ Mutation testing failed: expected 9 survivors, got ${survivors:-0}"
+            exit 1
           fi
