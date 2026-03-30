@@ -1,105 +1,115 @@
 import * as ModuleNamespace from 'module';
 
-const Module = (ModuleNamespace as any).default || ModuleNamespace;
-const originalLoad = Module._load;
+/**
+ * APOPHASIS MUTATOR
+ * A metatesting utility for Playwright that inverts assertions in-memory.
+ * 1. Robustness: Preventing infinite recursion in Proxies.
+ * 2. Precision: Ensuring internal symbols and non-string props are bypassed.
+ * 3. Scope: Only targeting the user-facing 'expect' API.
+ */
+
+const Module = (ModuleNamespace as any)?.default || ModuleNamespace;
+const originalLoad = typeof Module._load === 'function' ? Module._load : null;
+
+if (!originalLoad) {
+  throw new Error('Apophasis: Module._load is not available');
+}
+
+// Track proxies to prevent double-wrapping
+const proxyMap = new WeakSet();
 
 Module._load = function (request: string, parent: any, isMain: boolean) {
   const exports = originalLoad.apply(this, [request, parent, isMain]);
 
-  if (request === '@playwright/test' || request.includes('playwright/lib/test')) {
-    const shouldMutate = process.env.APOPHASIS_MUTATE === 'true' || process.env.MUTATE === 'true';
+  // 1. Environment Guard: Only mutate if explicitly enabled
+  const shouldMutate = process.env.APOPHASIS_MUTATE === 'true';
+  if (!shouldMutate || typeof request !== 'string') {
+    return exports;
+  }
 
-    if (shouldMutate && exports.expect && !exports.expect._isApophasisMutated) {
-      console.log(`⚡ Apophasis: Inverting Playwright assertions (via negativa)...`);
+  // 2. Targeted Injection: Only intercept Playwright's test/matchers logic
+  if (request === '@playwright/test' || request.indexOf('playwright/lib/test') !== -1) {
+    if (exports?.expect && !exports.expect._isApophasisMutated) {
+      
+      /**
+       * Creates a proxy around the matchers object (e.g., the object returned by expect(x))
+       */
+      const createMatchersProxy = (actualMatchers: any): any => {
+        if (!actualMatchers || typeof actualMatchers !== 'object' || proxyMap.has(actualMatchers)) {
+          return actualMatchers;
+        }
 
-      const originalExpect = exports.expect;
-
-      const createMatchersProxy = (actualMatchers: any) => {
-        return new Proxy(actualMatchers, {
-          get(matcherTarget, prop, receiver) {
-            // 1. Pass through JS internals, Promise methods, and Symbols
-            if (typeof prop !== 'string' ||
-              ['then', 'catch', 'finally', 'constructor',
-                'asymmetricMatch'].includes(prop)
-            ) {
-              return Reflect.get(matcherTarget, prop, receiver);
-            }
-
-            // --- SPECIAL CASE: resolves/rejects MUST NOT be inverted ---
-            if (prop === 'resolves' || prop === 'rejects') {
-              const next = Reflect.get(matcherTarget, prop, receiver);
-              return createMatchersProxy(next);
-            }
-
-            // --- CASE A: Original assertion HAS .not (Negative -> Positive) ---
-            if (prop === 'not') {
-              return new Proxy(matcherTarget, {
-                get(baseTarget, baseProp) {
-                  const positiveMatcher = Reflect.get(baseTarget, baseProp);
-                  if (typeof positiveMatcher === 'function') {
-                    // Use a Proxy to preserve Playwright's internal function properties/metadata
-                    return new Proxy(positiveMatcher, {
-                      apply(targetFn, thisArg, argArray) {
-                        return Reflect.apply(targetFn, baseTarget, argArray);
-                      }
-                    });
-                  }
-                  return positiveMatcher;
-                }
-              });
-            }
-
-            // --- CASE B: Original assertion is POSITIVE (Positive -> Negative) ---
-            const negatedMatchers = Reflect.get(matcherTarget, 'not');
-
+        const matcherProxy = new Proxy(actualMatchers, {
+          get(target, prop, receiver) {
+            // Bypass for internal symbols, async primitives, and housekeeping
             if (
-              !negatedMatchers ||
-              prop === 'resolves' ||
-              prop === 'rejects'
+              typeof prop !== 'string' || 
+              prop === '$$typeof' || 
+              prop === 'asymmetricMatch' ||
+              ['then', 'catch', 'finally', 'constructor', 'toJSON'].includes(prop)
             ) {
-              return Reflect.get(matcherTarget, prop, receiver);
+              return Reflect.get(target, prop, receiver);
             }
 
-            const negatedMatcher = Reflect.get(negatedMatchers, prop);
-
-            if (typeof negatedMatcher === 'function') {
-              // Use a Proxy to preserve Playwright's internal function properties/metadata
-              return new Proxy(negatedMatcher, {
-                apply(targetFn, thisArg, argArray) {
-                  return Reflect.apply(targetFn, negatedMatchers, argArray);
-                }
-              });
+            // Handle Promise unwrapping for .resolves and .rejects
+            if (prop === 'resolves' || prop === 'rejects') {
+              const promiseMatchers = Reflect.get(target, prop, receiver);
+              return createMatchersProxy(promiseMatchers);
             }
 
-            return negatedMatcher !== undefined ? negatedMatcher : Reflect.get(matcherTarget, prop, receiver);
+            // DO NOT intercept '.not' directly to avoid the "Inversion Paradox" 
+            // (We want to return the negated version of the call, not negate the negator)
+            if (prop === 'not') {
+              return Reflect.get(target, prop, receiver);
+            }
+
+            const originalMatcher = Reflect.get(target, prop, receiver);
+            const negatedSet = Reflect.get(target, 'not');
+
+            // THE INVERSION LOGIC
+            // If the user calls expect(x).toBe(y), we return expect(x).not.toBe(y)
+            if (typeof originalMatcher === 'function' && negatedSet) {
+              const negatedMatcher = Reflect.get(negatedSet, prop);
+              if (typeof negatedMatcher === 'function') {
+                // Bind to negatedSet to ensure 'this.isNot' is true inside the Playwright matcher
+                return negatedMatcher.bind(negatedSet);
+              }
+            }
+
+            return originalMatcher;
           }
         });
+
+        proxyMap.add(matcherProxy);
+        return matcherProxy;
       };
 
-      const proxyExpect = new Proxy(originalExpect, {
+      /**
+       * The Main Expect Proxy
+       * Intercepts expect(), expect.soft(), and expect.poll()
+       */
+      const proxyExpect = new Proxy(exports.expect, {
         apply(target, thisArg, args) {
-          const actualMatchers = Reflect.apply(target, target, args);
-          return createMatchersProxy(actualMatchers);
+          const matchers = Reflect.apply(target, target, args);
+          return createMatchersProxy(matchers);
         },
         get(target, prop, receiver) {
           if (prop === '_isApophasisMutated') return true;
 
           const value = Reflect.get(target, prop, receiver);
-
-          // 2. Intercept expect.soft and expect.poll
+          
+          // Patch sub-methods that return matchers
           if (typeof value === 'function' && (prop === 'soft' || prop === 'poll')) {
-            return new Proxy(value, {
-              apply(fnTarget, fnThisArg, fnArgs) {
-                const actualMatchers = Reflect.apply(fnTarget, target, fnArgs);
-                return createMatchersProxy(actualMatchers);
-              }
-            });
+            return (...args: any[]) => {
+              const matchers = value.apply(target, args);
+              return createMatchersProxy(matchers);
+            };
           }
-
           return value;
         }
       });
 
+      // Safely replace the export
       try {
         Object.defineProperty(exports, 'expect', {
           value: proxyExpect,
@@ -108,9 +118,11 @@ Module._load = function (request: string, parent: any, isMain: boolean) {
           writable: true
         });
       } catch (e) {
-        console.error('⚡ Apophasis: Failed to mutate expect property.', e);
+        // Fallback for environments where exports might be frozen
+        try { exports.expect = proxyExpect; } catch (inner) {}
       }
     }
   }
+
   return exports;
 };
