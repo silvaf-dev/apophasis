@@ -17,9 +17,25 @@ Traditional mutation testing mutates the **system under test**.
 Apophasis mutates the **test itself**, specifically:
 - It **inverts assertions** (`.toBeVisible()` → `.not.toBeVisible()`)
 - Runs the mutated test
-- Detects **surviving mutations** (i.e., false positives)
+- Detects **surviving mutations** (i.e., false negatives)
 
 This is effectively a **negative-space validation** of your test suite.
+
+### Why 'false negatives' and not 'false positives'?
+
+In mutation testing, we intentionally introduce small changes (“mutations”) to the code to verify that our tests can detect them.
+
+The core expectation is simple:
+
+If a test passes, a mutation should cause it to fail.
+
+When a mutation is applied and the test still passes, the test has failed to detect a behavioral change. In this context, this is treated as a *false negative*.
+
+✅ Test fails after mutation → the mutation is killed (test is effective)
+
+❌ Test still passes after mutation → false negative (test is insufficient)
+
+This definition focuses on test sensitivity: a good test suite should fail whenever the underlying behavior changes in a meaningful way.
 
 ---
 
@@ -114,7 +130,7 @@ Apophasis exposes:
 - Weak or non-binding assertions  
 - Timing issues (assertion runs before meaningful state change)  
 - Implicit assumptions in E2E tests  
-- False positives in UI validation  
+- False negatives in UI validation  
 
 ---
 
@@ -169,7 +185,7 @@ A test that cannot fail is indistinguishable from a test that does not exist.
 ## 🚀 Use Cases
 
 - Strengthening Playwright E2E suites  
-- Detecting false positives in UI/E2E tests  
+- Detecting false negatives in UI/E2E tests  
 - Auditing legacy test reliability  
 - Enforcing assertion quality in CI  
 
