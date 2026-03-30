@@ -167,7 +167,7 @@ test.describe('Playwright assertions to be mutated', () => {
     await expect.soft(button).not.toBeEnabled();
   });
 
-  test('toBeVisible and not.toBeVisible both pass', async ({ page }) => {
+  test('toBeVisible and not.toBeVisible both pass', { tag: '@shouldSurvive' }, async ({ page }) => {
     await page.setContent(`
     <style>.hidden { display: none; }</style>
     <div id="container"></div>
@@ -194,7 +194,7 @@ test.describe('Playwright assertions to be mutated', () => {
     await expect.soft(locator).not.toBeVisible();
   });
 
-  test('toHaveText and not.toHaveText both pass', async ({ page }) => {
+  test('toHaveText and not.toHaveText both pass', { tag: '@shouldSurvive' }, async ({ page }) => {
     await page.setContent(`
     <div id="container"></div>
     <script>
@@ -218,7 +218,7 @@ test.describe('Playwright assertions to be mutated', () => {
     await expect.soft(locator).not.toHaveText('Installation');
   });
 
-  test('toHaveAttribute and not.toHaveAttribute both pass', async ({ page }) => {
+  test('toHaveAttribute and not.toHaveAttribute both pass', { tag: '@shouldSurvive' }, async ({ page }) => {
     await page.setContent(`
     <div id="container"></div>
     <script>

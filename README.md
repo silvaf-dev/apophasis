@@ -36,6 +36,23 @@ You can reproduce this on a clean project in under a minute.
 
 ---
 
+---
+
+## 🎛️ CLI Usage (with Safe Arguments)
+
+Apophasis now includes a **hardened CLI parser**, which means you can safely pass a limited set of Playwright arguments directly:
+
+```bash
+npx apophasis --grep "login"
+npx apophasis --headed
+npx apophasis --workers 4
+npx apophasis --timeout 10000
+npx apophasis --retries 2
+npx apophasis --project chromium
+```
+
+---
+
 ## 🧠 Why "Apophasis"? 
 
 In philosophy and theology, *apophasis* (via negativa) describes something by stating what it is not.
