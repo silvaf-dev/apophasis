@@ -23,7 +23,7 @@ This is effectively a **negative-space validation** of your test suite.
 
 ---
 
-## 🧪 Try It!
+## 🧪 Try It! 
 
 You can reproduce this on a clean project in under a minute.
 
