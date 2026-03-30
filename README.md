@@ -87,7 +87,7 @@ This may mean:
 - The assertion is not verifying visibility in a meaningful way
 - The test passes even when the expectation is inverted
 
-However, survival can also indicate a timing issue — the assertion may be running before the meaningful state change occurs. Both cases warrant investigation.
+However, survival can also indicate a timing issue. The assertion may be running before the meaningful state change occurs. Both cases warrant investigation.
 
 ---
 
@@ -128,9 +128,9 @@ A valid test must:
 - Fail when its claim is negated  
 - Resist contradiction  
 
-If it does not, it is not a test — it is decoration.
+If it does not, it is not a test. It is decoration.
 
-When **A** and **¬A** are simultaneously true, the assertion is **trivially true** — and therefore **semantically empty**.
+When **A** and **¬A** are simultaneously true, the assertion is **trivially true**, and therefore **semantically empty**.
 
 In the context of testing:
 - `expect(x).toBeVisible()` → A  
@@ -142,6 +142,10 @@ If both pass, then:
 - The test is **logically degenerate**
 
 Apophasis treats such cases as a failure of meaning, not just implementation.
+
+In epistemological terms, when both assertions are true, the test is not *[falsifiable](https://en.wikipedia.org/wiki/Falsifiability)*, i.e. it is incapable of being proven wrong.
+
+A test that cannot fail is indistinguishable from a test that does not exist.
 
 ---
 
@@ -167,4 +171,4 @@ Apophasis does not ask whether your code is correct.
 
 It asks whether your tests are capable of being wrong.
 
-If they are not — they are useless.
+If they are not, they are useless.
