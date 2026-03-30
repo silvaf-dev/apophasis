@@ -23,6 +23,19 @@ This is effectively a **negative-space validation** of your test suite.
 
 ---
 
+## 🧪 Try It!
+
+You can reproduce this on a clean project in under a minute.
+
+1) Install Node.js (≥18)
+2) Create folder
+3) Install Playwright with `npm init playwright@latest` and accept all the default settings 
+4) Install Apophasis with `npm i apophasis` 
+5) Run apophasis with `npx apophasis`
+6) Have fun seeing Playwright's own `example.spec.ts` having surviving mutants!
+
+---
+
 ## 🧠 Why "Apophasis"? 
 
 In philosophy and theology, *apophasis* (via negativa) describes something by stating what it is not.
