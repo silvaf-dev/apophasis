@@ -40,10 +40,12 @@ jobs:
         run: |
           survivors=$(grep -Eo "Survived:\s*[0-9]+" apophasis.log | grep -Eo "[0-9]+")
 
-          if [ "$survivors" = "9" ]; then
-            echo "✅ Mutation testing passed: exactly 9 survivors"
+          survivors=${survivors:-0}
+
+          if [ "$survivors" -ge 4 ] && [ "$survivors" -le 9 ]; then
+            echo "✅ Mutation testing passed: survivors in range [4, 9] (got $survivors)"
           else
-            echo "❌ Mutation testing failed: expected 9 survivors, got ${survivors:-0}"
+            echo "❌ Mutation testing failed: expected survivors in [4, 9], got $survivors"
             exit 1
           fi
 
