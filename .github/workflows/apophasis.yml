@@ -1,7 +1,6 @@
 name: Apophasis Mutation Testing
 
 on:
-  push:
   pull_request:
 
 jobs:
@@ -39,9 +38,19 @@ jobs:
 
       - name: Enforce strict mutation policy
         run: |
-          if grep -Eq "Survived:\s*[1-9]" apophasis.log; then
-            echo "❌ Mutation testing failed: surviving mutants detected"
-            exit 1
+          if grep -Fxq "💀 Killed: 10 | 🛡️ Survived: 3" apophasis.log; then
+            echo "✅ Mutation testing passed: exact result matched"
           else
-            echo "✅ Mutation testing passed: zero survivors"
+            echo "❌ Mutation testing failed: expected '💀 Killed: 10 | 🛡️ Survived: 3'"
+            echo "Actual summary:"
+            grep -E "💀 Killed:" apophasis.log || echo "No summary line found"
+            exit 1
           fi
+
+      - name: Upload mutation report (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apophasis-report
+          path: apophasis-report/apophasis-report.html
+          if-no-files-found: warn

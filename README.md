@@ -23,20 +23,7 @@ This is effectively a **negative-space validation** of your test suite.
 
 ---
 
-## Try It!
-
-```bash
-git clone git@github.com:silvaf-dev/apophasis.git
-npm init playwright@latest
-npm run build
-npx apophasis
-```
-
-Bear witness to the second test surviving the mutation!
-
----
-
-## 🧠 Why "Apophasis"?
+## 🧠 Why "Apophasis"? 
 
 In philosophy and theology, *apophasis* (via negativa) describes something by stating what it is not.
 
@@ -101,12 +88,11 @@ Apophasis exposes:
 
 ---
 
-## ⚙️ How It Works — replaced the "clone and re-run" fiction with what the code actually does:
-
+## ⚙️ How It Works
 
 1. Intercept the Node.js module loader at startup
 2. Patch expect in memory when Playwright is loaded
-3. Invert all assertions dynamically (.not)
+3. Invert all assertions dynamically (expect() → expect().not and vice versa)
 4. Run Playwright once with APOPHASIS_MUTATE=true and once without
 5. Compare: assertions that survive inversion are weak or non-binding
 

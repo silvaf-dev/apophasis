@@ -167,4 +167,78 @@ test.describe('Playwright assertions to be mutated', () => {
     await expect.soft(button).not.toBeEnabled();
   });
 
+  test('toBeVisible and not.toBeVisible both pass', async ({ page }) => {
+    await page.setContent(`
+    <style>.hidden { display: none; }</style>
+    <div id="container"></div>
+    <script>
+      const container = document.getElementById('container');
+      let toggle = false;
+      setInterval(() => {
+        toggle = !toggle;
+        container.innerHTML = toggle
+          ? '<h1>Installation</h1>'
+          : '<h1 class="hidden">Installation</h1>';
+      }, 100);
+    </script>
+  `);
+
+    const locator = page.getByRole('heading', { name: 'Installation' });
+
+    // Wait until visible state is actually observed
+    await expect.poll(async () => await locator.isVisible()).toBe(true);
+    await expect.soft(locator).toBeVisible();
+
+    // Wait until hidden state is actually observed
+    await expect.poll(async () => await locator.isVisible()).toBe(false);
+    await expect.soft(locator).not.toBeVisible();
+  });
+
+  test('toHaveText and not.toHaveText both pass', async ({ page }) => {
+    await page.setContent(`
+    <div id="container"></div>
+    <script>
+      const container = document.getElementById('container');
+      let toggle = false;
+      setInterval(() => {
+        toggle = !toggle;
+        container.innerHTML = toggle
+          ? '<h1>Installation</h1>'
+          : '<h1>Other</h1>';
+      }, 100);
+    </script>
+  `);
+
+    const locator = page.getByRole('heading');
+
+    await expect.poll(async () => await locator.textContent()).toBe('Installation');
+    await expect.soft(locator).toHaveText('Installation');
+
+    await expect.poll(async () => await locator.textContent()).not.toBe('Installation');
+    await expect.soft(locator).not.toHaveText('Installation');
+  });
+
+  test('toHaveAttribute and not.toHaveAttribute both pass', async ({ page }) => {
+    await page.setContent(`
+    <div id="container"></div>
+    <script>
+      const container = document.getElementById('container');
+      let toggle = false;
+      setInterval(() => {
+        toggle = !toggle;
+        container.innerHTML = toggle
+          ? '<button data-state="active">Click</button>'
+          : '<button data-state="inactive">Click</button>';
+      }, 100);
+    </script>
+  `);
+
+    const locator = page.getByRole('button', { name: 'Click' });
+
+    await expect.poll(async () => await locator.getAttribute('data-state')).toBe('active');
+    await expect.soft(locator).toHaveAttribute('data-state', 'active');
+
+    await expect.poll(async () => await locator.getAttribute('data-state')).not.toBe('active');
+    await expect.soft(locator).not.toHaveAttribute('data-state', 'active');
+  });
 });
