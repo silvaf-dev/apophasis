@@ -327,7 +327,7 @@ if (parsedArgs.baseline) {
 // ----------------------
 // Mutation Execution
 // ----------------------
-console.log('🚀 Starting Apophasis Mutation Testing...');
+console.log('\n🚀 Starting Apophasis Mutation Testing...');
 if (!parsedArgs.baseline)
     console.warn('⚠️ Running without baseline validation. Results may be unreliable.');
 const testStart = process.hrtime.bigint();

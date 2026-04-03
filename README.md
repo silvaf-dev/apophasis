@@ -52,8 +52,6 @@ You can reproduce this on a clean project in under a minute.
 
 ---
 
----
-
 ## 🎛️ CLI Usage (with Safe Arguments)
 
 Apophasis includes a **hardened CLI parser**, allowing you to safely pass a controlled subset of Playwright arguments without exposing arbitrary command execution.
@@ -116,22 +114,43 @@ Useful for debugging, CI validation, or verifying test health independently of m
 
 ---
 
+## ⏱️ Reducing Execution Time During Mutation Testing
+
+When running mutation tests, inverted assertions can significantly slow down execution due to Playwright’s auto-waiting behavior. By default, assertions wait up to several seconds before failing, which compounds across many mutants.
+
+To mitigate this, you can dynamically reduce assertion timeouts when running under mutation mode by adding these lines to your `playwright.config.ts`:
+
+```js
+expect: {
+  timeout: process.env.APOPHASIS_MUTATE ? 1500 : 5000,
+},
+```
+
+### ⚙️ How It Works
+
+- When `APOPHASIS_MUTATE` is set:
+  - Assertion timeout is reduced to **500ms**
+  - Failures occur much faster → **faster mutation runs**
+- Otherwise:
+  - Default timeout remains **5000ms**
+  - Ensures stability for normal test execution
+
+### ⚠️ Trade-off
+
+> **Warning:** Smaller timeouts may reduce detection accuracy.
+
+- Short timeouts can cause assertions to fail **too early**
+- This may allow some mutants to **survive undetected**
+- Larger timeouts provide **better reliability**, but at the cost of speed
+
+---
+
 ## 🔒 Security Model
 
 - Arguments are strictly parsed and validated  
 - Unsupported flags will cause an immediate failure  
 - No shell interpolation (`shell: false`)  
 - Only explicitly allowlisted Playwright options are permitted  
-
----
-
-## 🧠 Why "Apophasis"? 
-
-In philosophy and theology, *apophasis* (via negativa) describes something by stating what it is not.
-
-Here:
-- A test is validated by showing what **it cannot deny**
-- If a negated assertion still passes, the test is **empty of meaning**
 
 ---
 
@@ -209,6 +228,16 @@ Apophasis exposes:
 
 ---
 
+## 🧠 Why "Apophasis"? 
+
+In philosophy and theology, *apophasis* (via negativa) describes something by stating what it is not.
+
+Here:
+- A test is validated by showing what **it cannot deny**
+- If a negated assertion still passes, the test is **empty of meaning**
+
+---
+
 ## 🧪 Philosophy of Testing
 
 Apophasis treats tests as **claims about reality**.
@@ -249,10 +278,11 @@ A test that cannot fail is indistinguishable from a test that does not exist.
 
 ## ⚠️ Limitations
 
-- Not all assertions are safely invertible  
 - Some survival cases may be due to legitimate non-determinism  
 - Requires careful interpretation in async-heavy flows  
 - Supports expect(), expect.soft(), and expect.poll(); other assertion patterns may behave unreliably
+
+---
 
 ## 🧩 Closing Thought
 
