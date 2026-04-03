@@ -35,7 +35,7 @@ jobs:
 
   apophasis:
     runs-on: ubuntu-latest
-    needs: playwright # finish first job before tackling this one
+    needs: playwright # first job must succeed before tackling this one
     steps:
       - name: Checkout project repo
         uses: actions/checkout@v4
@@ -51,15 +51,12 @@ jobs:
       - name: Install Playwright
         run: npx playwright install
 
-      - name: Install & build Apophasis (local workspace)
-        working-directory: ./apophasis
-        run: |
-          npm ci
-          npm run build
+      - name: Build Apophasis
+        run: npm run build
 
       - name: Run Apophasis with baseline Playwright
         run: |
-          node ./apophasis/dist/bin.js --baseline | tee apophasis.log
+          node ./dist/bin.js --baseline | tee apophasis.log
 
       - name: Enforce strict mutation policy
         run: |
