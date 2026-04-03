@@ -26,7 +26,10 @@ jobs:
         run: npx playwright test | tee playwright.log
 
       - name: Check every Playwright test passes before continuing
-        run: grep -q "failed" playwright.log && exit 1
+        run: |
+          if grep -q "failed" playwright.log; then
+            exit 1
+          fi
 
       - name: Upload Playwright report (on failure)
         if: failure()
