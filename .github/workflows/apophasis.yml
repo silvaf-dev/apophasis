@@ -60,12 +60,15 @@ jobs:
 
       - name: Enforce strict mutation policy
         run: |
-          if grep -Fxq "💀 Killed: 10 | 🛡️ Survived: 3" apophasis.log; then
-            echo "✅ Mutation testing passed: exact result matched"
+          killed=$(grep -A1 "💀 Killed Mutants" apophasis.log | tail -n1 | xargs)
+          survived=$(grep -A1 "🛡️ Survived Mutants" apophasis.log | tail -n1 | xargs)
+
+          if [[ "$killed" == "10" && "$survived" == "3" ]]; then
+            echo "✅ Testing the tester of tests (Apophasis) passed."
+            echo "Killed: $killed | Survived: $survived"
           else
-            echo "❌ Mutation testing failed: expected '💀 Killed: 10 | 🛡️ Survived: 3'"
-            echo "Actual summary:"
-            grep -E "💀 Killed:" apophasis.log || echo "No summary line found"
+            echo "❌ Testing the tester of tests (Apophasis) failed."
+            echo "Killed: $killed | Survived: $survived"
             exit 1
           fi
 
