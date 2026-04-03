@@ -23,7 +23,7 @@ jobs:
         run: npx playwright install
 
       - name: Run Playwright regularly
-        run: npx playwright test
+        run: npx playwright test | tee playwright.log
 
       - name: Check every Playwright test passes before continuing
         run: grep -q "failed" playwright.log && exit 1
