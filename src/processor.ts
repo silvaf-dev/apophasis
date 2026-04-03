@@ -86,6 +86,8 @@ if (!data || typeof data !== 'object') {
 // Processing
 // ----------------------
 
+const reportStart = process.hrtime.bigint();
+
 const killed: any[] = [];
 const survived: any[] = [];
 
@@ -212,5 +214,48 @@ try {
 // Output
 // ----------------------
 
-console.log(`\n✅ Apophasis report generated`);
-console.log(`💀 Killed: ${killed.length} | 🛡️ Survived: ${survived.length}`);
+const reportEnd = process.hrtime.bigint();
+const reportDurationMs = Number(reportEnd - reportStart) / 1_000_000;
+
+function formatDuration(ms: number): string {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    if (minutes > 0 && seconds === 0) {
+        return `${minutes}m`;
+    }
+
+    if (minutes > 0) {
+        return `${minutes}m ${seconds}s`;
+    }
+
+    return `${seconds}s`;
+}
+
+const total = killed.length + survived.length;
+const score = total > 0 ? ((killed.length / total) * 100).toFixed(1) : '0.0';
+
+console.log(`\n⏳ Report generation time: ${reportDurationMs.toFixed(2)} ms (${formatDuration(reportDurationMs)})`)
+
+console.log('\nℹ️ Note: Playwright test failures are expected — they indicate killed mutants, and where they were killed.')
+
+console.log(`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Apophasis report generated
+📋 Open HTML version with: npx apophasis report
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 Results
+
+💀 Killed Mutants
+   ${killed.length}
+
+🛡️ Survived Mutants
+   ${survived.length}
+
+🎯 Mutation Score
+   ${score}%
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`);

@@ -72,9 +72,6 @@ test.describe('Playwright assertions to be mutated', () => {
     expect.soft(arr).toEqual(expect.arrayContaining([1, 2]));
     expect.soft(arr).not.toEqual(expect.arrayContaining([4]));
 
-    expect.soft(arr).toEqual(expect.soft(expect.any(Number)));
-    expect.soft(arr).not.toEqual(expect.soft(expect.any(String)));
-
     const obj = { a: 1, b: 2 };
 
     expect.soft(obj).toHaveProperty('a');

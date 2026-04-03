@@ -56,7 +56,9 @@ You can reproduce this on a clean project in under a minute.
 
 ## 🎛️ CLI Usage (with Safe Arguments)
 
-Apophasis now includes a **hardened CLI parser**, which means you can safely pass a limited set of Playwright arguments directly:
+Apophasis includes a **hardened CLI parser**, allowing you to safely pass a controlled subset of Playwright arguments without exposing arbitrary command execution.
+
+### ✅ Supported Playwright Arguments
 
 ```bash
 npx apophasis --grep "login"
@@ -66,6 +68,60 @@ npx apophasis --timeout 10000
 npx apophasis --retries 2
 npx apophasis --project chromium
 ```
+
+All arguments are strictly validated and allowlisted.
+
+---
+
+## ⚙️ Execution Modes
+
+Apophasis supports multiple execution modes depending on your workflow:
+
+### 🚀 Mutation Only (default)
+
+```bash
+npx apophasis
+```
+
+Runs mutation testing directly, without validating the baseline first.
+
+⚠️ Faster, but results may be unreliable if your test suite is broken or flaky.
+
+---
+
+### 🧪 Baseline + Mutation
+
+```bash
+npx apophasis --baseline
+```
+
+- Runs the test suite without mutation  
+- Ensures all tests pass  
+- Proceeds to mutation testing only if baseline is clean  
+- *Note*: The baseline phase uses the exact same arguments as the mutation run  
+
+✅ Recommended for CI and reliable mutation results
+
+---
+
+### 🧪 Baseline Only
+
+```bash
+npx apophasis --baseline-only
+```
+
+- Runs only the baseline test suite and exits  
+
+Useful for debugging, CI validation, or verifying test health independently of mutation.
+
+---
+
+## 🔒 Security Model
+
+- Arguments are strictly parsed and validated  
+- Unsupported flags will cause an immediate failure  
+- No shell interpolation (`shell: false`)  
+- Only explicitly allowlisted Playwright options are permitted  
 
 ---
 

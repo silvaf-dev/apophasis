@@ -4,7 +4,7 @@ on:
   pull_request:
 
 jobs:
-  apophasis:
+  playwright:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,31 +19,56 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Clone Apophasis
-        run: git clone https://github.com/silvaf-dev/apophasis.git
+      - name: Install clean Playwright
+        run: npx playwright install
+
+      - name: Run Playwright regularly
+        run: npx playwright test
+
+      - name: Upload Playwright report (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/index.html
+          if-no-files-found: warn
+
+  apophasis:
+    runs-on: ubuntu-latest
+    needs: playwright # first job must succeed before tackling this one
+    steps:
+      - name: Checkout project repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Install Playwright
         run: npx playwright install
 
       - name: Build Apophasis
-        working-directory: ./apophasis
-        run: npm install && npm run build
+        run: npm run build
 
-      - name: Install Apophasis locally
-        run: npm install ./apophasis
-
-      - name: Run Apophasis
+      - name: Run Apophasis with baseline Playwright
         run: |
-          npx apophasis | tee apophasis.log
+          node ./dist/bin.js --baseline | tee apophasis.log
 
       - name: Enforce strict mutation policy
         run: |
-          if grep -Fxq "💀 Killed: 10 | 🛡️ Survived: 3" apophasis.log; then
-            echo "✅ Mutation testing passed: exact result matched"
+          killed=$(grep -A1 "💀 Killed Mutants" apophasis.log | tail -n1 | xargs)
+          survived=$(grep -A1 "🛡️ Survived Mutants" apophasis.log | tail -n1 | xargs)
+
+          if [[ "$killed" == "10" && "$survived" == "3" ]]; then
+            echo "✅ Testing the tester of tests (Apophasis) passed."
+            echo "Killed: $killed | Survived: $survived"
           else
-            echo "❌ Mutation testing failed: expected '💀 Killed: 10 | 🛡️ Survived: 3'"
-            echo "Actual summary:"
-            grep -E "💀 Killed:" apophasis.log || echo "No summary line found"
+            echo "❌ Testing the tester of tests (Apophasis) failed."
+            echo "Killed: $killed | Survived: $survived"
             exit 1
           fi
 
