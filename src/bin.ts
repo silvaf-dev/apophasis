@@ -67,6 +67,8 @@ type ParsedArgs = {
     timeout?: number;
     retries?: number;
     project?: string;
+    baseline?: boolean;
+    baselineOnly?: boolean;
 };
 
 function parseArgs(args: string[]): ParsedArgs {
@@ -131,6 +133,15 @@ function parseArgs(args: string[]): ParsedArgs {
                 break;
             }
 
+            case '--baseline':
+                parsed.baseline = true;
+                break;
+
+            case '--baseline-only':
+                parsed.baselineOnly = true;
+                parsed.baseline = true; // implies baseline
+                break;
+
             default:
                 throw new Error(`Unsupported argument: ${arg}`);
         }
@@ -139,7 +150,51 @@ function parseArgs(args: string[]): ParsedArgs {
     return parsed;
 }
 
+// ----------------------
+// Playwright Args Builder
+// ----------------------
+function buildPlaywrightArgs(parsedArgs: ParsedArgs, useHook: boolean): string[] {
+    const args: string[] = [];
+
+    if (useHook) {
+        args.push('-r', hookPath);
+    }
+
+    args.push(
+        playwrightBin,
+        'test',
+        '--reporter=json',
+    );
+
+    if (parsedArgs.grep) {
+        args.push('--grep', parsedArgs.grep);
+    }
+
+    if (parsedArgs.headed) {
+        args.push('--headed');
+    }
+
+    if (parsedArgs.workers !== undefined) {
+        args.push('--workers', String(parsedArgs.workers));
+    }
+
+    if (parsedArgs.timeout !== undefined) {
+        args.push('--timeout', String(parsedArgs.timeout));
+    }
+
+    if (parsedArgs.retries !== undefined) {
+        args.push('--retries', String(parsedArgs.retries));
+    }
+
+    if (parsedArgs.project) {
+        args.push('--project', parsedArgs.project);
+    }
+
+    return args;
+}
+
 let parsedArgs: ParsedArgs;
+
 
 try {
     parsedArgs = parseArgs(rawArgs);
@@ -154,15 +209,7 @@ try {
 const hookPath = path.resolve(__dirname, 'hook.js');
 const playwrightBin = path.resolve(process.cwd(), 'node_modules', '.bin', 'playwright');
 
-const playwrightArgs: string[] = [
-    '-r',
-    hookPath,
-    playwrightBin,
-    'test',
-
-    // 🔒 FORCE SAFE FLAGS (cannot be overridden)
-    '--reporter=json',
-];
+const playwrightArgs = buildPlaywrightArgs(parsedArgs, true);
 
 // Apply parsed args safely
 if (parsedArgs.grep) {
@@ -190,10 +237,100 @@ if (parsedArgs.project) {
 }
 
 // ----------------------
-// Execution
+// Baseline Execution (no mutation)
+// ----------------------
+if (parsedArgs.baseline) {
+    console.log('🧪 Running baseline Playwright (no mutation)...');
+
+    const baselineResult = spawnSync('node', buildPlaywrightArgs(parsedArgs, false), {
+        env: {
+            ...process.env,
+            APOPHASIS_MUTATE: 'false',
+        },
+        stdio: 'pipe',
+        encoding: 'utf-8',
+        shell: false,
+    });
+
+    if (!baselineResult.stdout) {
+        console.error('❌ No output from baseline run');
+        process.exit(1);
+    }
+
+    let baselineJson;
+
+    try {
+        baselineJson = JSON.parse(baselineResult.stdout);
+    } catch (e) {
+        console.error('❌ Failed to parse baseline JSON output');
+        console.error(baselineResult.stdout);
+        process.exit(1);
+    }
+
+    // ----------------------
+    // Baseline Summary
+    // ----------------------
+    const stats = baselineJson.stats;
+
+    const passed = stats.expected;
+    const failed = stats.unexpected;
+    const skipped = stats.skipped;
+    const total = passed + failed + skipped;
+
+    console.log('\n🧪 Baseline Summary');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`Total:    ${total}`);
+    console.log(`Passed:   ${passed}`);
+    console.log(`Failed:   ${failed}`);
+    console.log(`Skipped:  ${skipped}`);
+    console.log(`Duration: ${(stats.duration / 1000).toFixed(2)}s`);
+
+    // ----------------------
+    // Collect Failures
+    // ----------------------
+    function collectFailures(suites: any[], acc: string[] = []): string[] {
+        for (const suite of suites) {
+            if (suite.specs) {
+                for (const spec of suite.specs) {
+                    for (const test of spec.tests || []) {
+                        for (const result of test.results || []) {
+                            if (result.status === 'failed') {
+                                acc.push(spec.title);
+                            }
+                        }
+                    }
+                }
+            }
+            if (suite.suites) {
+                collectFailures(suite.suites, acc);
+            }
+        }
+        return acc;
+    }
+
+    if (failed > 0) {
+        const failures = collectFailures(baselineJson.suites);
+
+        console.log('\n❌ Failing Tests:');
+        for (const f of failures) {
+            console.log(`  - ${f}`);
+        }
+        process.exit(1); // Stop right here
+    }
+
+    if (parsedArgs.baselineOnly) {
+        console.log('\n✅ Baseline completed. Exiting (baseline-only mode).');
+        process.exit(0);
+    }
+}
+
+// ----------------------
+// Mutation Execution
 // ----------------------
 console.log('🚀 Starting Apophasis Mutation Testing...');
-
+if (!parsedArgs.baseline)
+    console.warn('⚠️ Running without baseline validation. Results may be unreliable.');
+const testStart = process.hrtime.bigint();
 const result = spawnSync('node', playwrightArgs, {
     env: {
         ...process.env,
@@ -214,9 +351,28 @@ if (result.error) {
 
 if (typeof result.status === 'number') {
     if (result.status !== 0) {
-        console.warn(`⚠️ Playwright exited with code ${result.status}`);
+        console.warn(`Playwright exited with code ${result.status}`);
     }
 }
+
+const testEnd = process.hrtime.bigint();
+const testDurationMs = Number(testEnd - testStart) / 1_000_000;
+
+const formatDuration = (ms: number): string => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    if (minutes > 0) {
+        return `${minutes} minute${minutes !== 1 ? 's' : ''} ${seconds} second${seconds !== 1 ? 's' : ''}`;
+    }
+
+    return `${seconds} second${seconds !== 1 ? 's' : ''}`;
+}
+
+console.log(
+    `\n⏱️  Mutated test execution time: ${testDurationMs.toFixed(2)} ms (${formatDuration(testDurationMs)})`
+);
 
 // ----------------------
 // Post-processing
