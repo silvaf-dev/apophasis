@@ -23,13 +23,7 @@ jobs:
         run: npx playwright install
 
       - name: Run Playwright regularly
-        run: npx playwright test | tee playwright.log
-
-      - name: Check every Playwright test passes before continuing
-        run: |
-          if grep -q "failed" playwright.log; then
-            exit 1
-          fi
+        run: npx playwright test
 
       - name: Upload Playwright report (on failure)
         if: failure()
@@ -54,22 +48,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Clone Apophasis
-        run: git clone https://github.com/silvaf-dev/apophasis.git
-
       - name: Install Playwright
         run: npx playwright install
 
-      - name: Build Apophasis
+      - name: Install & build Apophasis (local workspace)
         working-directory: ./apophasis
-        run: npm install && npm run build
-
-      - name: Install Apophasis locally
-        run: npm install ./apophasis
+        run: |
+          npm ci
+          npm run build
 
       - name: Run Apophasis with baseline Playwright
         run: |
-          npx apophasis --baseline | tee apophasis.log
+          node ./apophasis/dist/bin.js --baseline | tee apophasis.log
 
       - name: Enforce strict mutation policy
         run: |
