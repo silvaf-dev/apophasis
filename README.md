@@ -19,7 +19,18 @@ Apophasis mutates the **test itself**, specifically:
 - Runs the mutated test
 - Detects **surviving mutations** (i.e., false negatives)
 
-This is effectively a **negative-space validation** of your test suite.
+### Example
+
+![Demo showing what happens when we invert unvalidated assertions](demo.gif "Demo")
+
+### What This Reveals
+
+Apophasis exposes:
+- Weak or non-binding assertions  
+- Timing issues (assertion runs before meaningful state change)  
+- Implicit assumptions in E2E tests  
+- False negatives in UI validation  
+
 
 ### Why 'false negatives' and not 'false positives'?
 
@@ -151,61 +162,6 @@ expect: {
 - Unsupported flags will cause an immediate failure  
 - No shell interpolation (`shell: false`)  
 - Only explicitly allowlisted Playwright options are permitted  
-
----
-
-## 🚨 Example: Playwright Default Test Failure
-
-Given the default Playwright example:
-
-```ts
-import { test, expect } from '@playwright/test';
-
-test('has title', async ({ page }) => {
-  await page.goto('https://playwright.dev/');
-  await expect(page).toHaveTitle(/Playwright/);
-});
-
-test('get started link', async ({ page }) => {
-  await page.goto('https://playwright.dev/');
-  await page.getByRole('link', { name: 'Get started' }).click();
-  await expect(page.getByRole('heading', { name: 'Installation' })).toBeVisible();
-});
-```
-
-Apophasis mutates it to:
-```ts
-import { test, expect } from '@playwright/test';
-
-test('has title', async ({ page }) => {
-  // ...test logic
-  await expect(page).not.toHaveTitle(/Playwright/);
-});
-
-test('get started link', async ({ page }) => {
-  // ...test logic
-  await expect(page.getByRole('heading', { name: 'Installation' })).not.toBeVisible();
-});
-```
-
-### ❗ Result
-The mutated `toBeVisible()` assertion survives.
-This may mean:
-
-- The assertion is not verifying visibility in a meaningful way
-- The test passes even when the expectation is inverted
-
-However, survival can also indicate a timing issue. The assertion may be running before the meaningful state change occurs. Both cases warrant investigation.
-
----
-
-## 🔍 What This Reveals
-
-Apophasis exposes:
-- Weak or non-binding assertions  
-- Timing issues (assertion runs before meaningful state change)  
-- Implicit assumptions in E2E tests  
-- False negatives in UI validation  
 
 ---
 
