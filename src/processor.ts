@@ -91,6 +91,41 @@ const reportStart = process.hrtime.bigint();
 const killed: any[] = [];
 const survived: any[] = [];
 
+// ----------------------
+// Snippet / message parsing
+// ----------------------
+
+/**
+ * Strips ANSI escape codes from a string.
+ */
+function stripAnsi(s: string): string {
+    return s.replace(/\u001b\[[0-9;]*[mGKHF]/g, '')
+            .replace(/\u001b\][^\u0007]*\u0007/g, '')
+            .replace(/[\u0000-\u0008\u000b-\u001a\u001c-\u001f]/g, '');
+}
+
+/**
+ * Extracts the "expect(received)…" failure description from a Playwright
+ * error message.
+ */
+function extractMutatedLine(message: string): string {
+    const stripped = stripAnsi(message);
+    for (const line of stripped.split('\n')) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('Error: expect(')) {
+            return trimmed.replace(/^Error:\s*/, '').trim();
+        }
+        if (trimmed.startsWith('expect(')) {
+            return trimmed;
+        }
+    }
+    return '';
+}
+
+// ----------------------
+// findTests
+// ----------------------
+
 function findTests(suite: any): void {
     if (!suite || typeof suite !== 'object') return;
 
@@ -111,11 +146,37 @@ function findTests(suite: any): void {
 
             const status = safeString(latestResult.status);
 
+            const softErrors: any[] = safeArray(latestResult.errors).filter(
+                (e: any) => e && typeof e === 'object'
+            );
+            const isSoftTest = softErrors.length > 0;
+
+            const mutations: string[] = [];
+
+            if (isSoftTest) {
+                softErrors.forEach((e: any) => {
+                    const line = extractMutatedLine(safeString(e.message));
+                    if (line) mutations.push(line);
+                });
+            } else {
+                const error = latestResult.error;
+                if (error && typeof error === 'object') {
+                    const line = extractMutatedLine(safeString(error.message));
+                    if (line) mutations.push(line);
+                }
+            }
+
+            // Format mutations for HTML
+            const formattedMutated = mutations
+                .map(m => `<code>${escapeHtml(m.split('//')[0].replace(/;| failed/g, '').trim())}</code>`)
+                .join('');
+
             const info = {
                 title: safeString(spec.title),
                 file: safeString(spec.file),
                 line: safeNumber(spec.line),
-                project: safeString(test.projectName || 'default')
+                project: safeString(test.projectName || 'default'),
+                mutatedAssertion: formattedMutated,
             };
 
             if (status === 'passed') {
@@ -138,26 +199,119 @@ for (const suite of rootSuites) {
 }
 
 // ----------------------
-// HTML generation (escaped)
+// HTML generation
 // ----------------------
 
 const htmlContent = `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apophasis Mutation Report</title>
     <style>
-        body { font-family: -apple-system, system-ui, sans-serif; margin: 40px; background: #0f172a; color: #f8fafc; }
-        .container { max-width: 1000px; margin: auto; background: #1e293b; padding: 30px; border-radius: 12px; }
-        .summary { display: flex; gap: 20px; margin: 30px 0; }
-        .card { padding: 25px; border-radius: 12px; flex: 1; text-align: center; }
-        .killed { background: #065f46; }
-        .survived { background: #7f1d1d; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #334155; }
-        th, td { padding: 12px; border-bottom: 1px solid #475569; }
-        th { background: #475569; }
-        .file-path { color: #94a3b8; font-family: monospace; font-size: 0.85em; }
-        .project-tag { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; color: #38bdf8; border: 1px solid #38bdf8; }
+        :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --table-bg: #334155;
+            --border: #475569;
+            --text: #f8fafc;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --success: #065f46;
+            --danger: #7f1d1d;
+        }
+
+        body {
+            font-family: -apple-system, system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 { font-size: 1.8rem; margin-bottom: 1rem; }
+
+        .summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .card {
+            padding: 20px;
+            border-radius: 12px;
+            flex: 1;
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .killed  { background: var(--success); }
+        .survived { background: var(--danger); }
+
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            margin-top: 20px;
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--table-bg);
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        th { background: var(--border); position: sticky; top: 0; }
+
+        .file-path { color: var(--muted); font-family: monospace; font-size: 0.8em; word-break: break-all; }
+
+        .project-tag {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            white-space: nowrap;
+        }
+
+        code {
+            font-family: monospace;
+            background: rgba(0,0,0,0.2);
+            padding: 2px 4px;
+            border-radius: 4px;
+            word-break: break-word;
+            display: block;
+            margin-top: 3px;
+        }
+
+        code:first-child { margin-top: 0; }
+
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .container { padding: 15px; }
+            h1 { font-size: 1.4rem; }
+            .card { padding: 15px; }
+        }
     </style>
 </head>
 <body>
@@ -166,35 +320,62 @@ const htmlContent = `<!DOCTYPE html>
 
         <div class="summary">
             <div class="card killed">
-                <div style="font-size: 2.5em; font-weight: bold;">${killed.length}</div>
+                <div style="font-size: 2em; font-weight: bold;">${killed.length}</div>
                 <div>Mutants Killed</div>
             </div>
             <div class="card survived">
-                <div style="font-size: 2.5em; font-weight: bold;">${survived.length}</div>
+                <div style="font-size: 2em; font-weight: bold;">${survived.length}</div>
                 <div>Survivors Found</div>
             </div>
         </div>
 
         <h2>${survived.length > 0 ? '⚠️ Survivors Detected' : '✅ All Mutants Killed'}</h2>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Browser/Project</th>
-                    <th>Test Title</th>
-                    <th>File Location</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${survived.map(s => `
+        <div class="table-wrapper">
+            <table>
+                <thead>
                     <tr>
-                        <td><span class="project-tag">${escapeHtml(s.project)}</span></td>
-                        <td><strong>${escapeHtml(s.title)}</strong></td>
-                        <td class="file-path">${escapeHtml(s.file)}:${s.line}</td>
+                        <th>Project</th>
+                        <th>Test Title</th>
+                        <th>File Location</th>
                     </tr>
-                `).join('')}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    ${survived.map(s => `
+                        <tr>
+                            <td><span class="project-tag">${escapeHtml(s.project)}</span></td>
+                            <td><strong>${escapeHtml(s.title)}</strong></td>
+                            <td class="file-path">${escapeHtml(s.file)}:${s.line}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+
+        <h2 style="margin-top: 40px;">💀 Killed Mutants Details</h2>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Project</th>
+                        <th>Test Name</th>
+                        <th>Mutated Assertion(s)</th>
+                        <th>File Path</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${killed.map((k) => `
+                        <tr>
+                            <td><span class="project-tag">${escapeHtml(k.project)}</span></td>
+                            <td>${escapeHtml(k.title)}</td>
+                            <td>${k.mutatedAssertion}</td>
+                            <td class="file-path">${escapeHtml(k.file)}:${k.line}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
     </div>
 </body>
 </html>`;
@@ -222,24 +403,16 @@ function formatDuration(ms: number): string {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
 
-    if (minutes > 0 && seconds === 0) {
-        return `${minutes}m`;
-    }
-
-    if (minutes > 0) {
-        return `${minutes}m ${seconds}s`;
-    }
-
+    if (minutes > 0 && seconds === 0) return `${minutes}m`;
+    if (minutes > 0) return `${minutes}m ${seconds}s`;
     return `${seconds}s`;
 }
 
 const total = killed.length + survived.length;
 const score = total > 0 ? ((killed.length / total) * 100).toFixed(1) : '0.0';
 
-console.log(`\n⏳ Report generation time: ${reportDurationMs.toFixed(2)} ms (${formatDuration(reportDurationMs)})`)
-
-console.log('\nℹ️ Note: Playwright test failures are expected — they indicate killed mutants, and where they were killed.')
-
+console.log(`\n⏳ Report generation time: ${reportDurationMs.toFixed(2)} ms (${formatDuration(reportDurationMs)})`);
+console.log('\nℹ️ Note: Playwright test failures are expected — they indicate killed mutants, and where they were killed.');
 console.log(`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ Apophasis report generated
