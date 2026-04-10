@@ -23,7 +23,7 @@ Apophasis mutates the **test itself**, specifically:
 
 Unvalidated assertions are prone to `pass` both in their _positive_ and _negative_ forms:
 
-![Demo showing what happens when we invert unvalidated assertions](demo.gif "Demo")
+![Demo showing what happens when we invert unvalidated assertions](docs/demo.gif "Demo")
 
 ### What This Reveals
 
