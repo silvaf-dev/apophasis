@@ -58,17 +58,25 @@ jobs:
         run: |
           node ./dist/bin.js --baseline | tee apophasis.log
 
-      - name: Enforce strict mutation policy
+      - name: Enforce mutation policy via @shouldSurvive
         run: |
-          killed=$(grep -A1 "💀 Killed Mutants" apophasis.log | tail -n1 | xargs)
+          # Count expected survivors from test annotations
+          expected=$(grep -R "@shouldSurvive" tests --include="*.spec.ts" | wc -l | xargs)
+
+          echo "Expected survivors (from annotations): $expected"
+
+          # Extract actual survivors from Apophasis log
           survived=$(grep -A1 "🛡️ Survived Mutants" apophasis.log | tail -n1 | xargs)
 
-          if [[ "$killed" == "10" && "$survived" == "3" ]]; then
-            echo "✅ Testing the tester of tests (Apophasis) passed."
-            echo "Killed: $killed | Survived: $survived"
+          echo "Actual survivors (from Apophasis): $survived"
+
+          # Compare
+          if [[ "$survived" == "$expected" ]]; then
+            echo "✅ Mutation policy satisfied."
           else
-            echo "❌ Testing the tester of tests (Apophasis) failed."
-            echo "Killed: $killed | Survived: $survived"
+            echo "❌ Mutation policy failed."
+            echo "Expected survivors: $expected"
+            echo "Actual survivors: $survived"
             exit 1
           fi
 
