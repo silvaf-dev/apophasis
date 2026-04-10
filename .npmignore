@@ -5,6 +5,10 @@ src/
 tsconfig.json
 playwright.config.ts
 
+# Docs
+# Avoids shipping large media
+docs
+
 # Tests
 tests/
 __tests__/
@@ -42,8 +46,9 @@ apophasis-report
 coverage/
 .nyc_output/
 
-# TS build cache
+# Build
 *.tsbuildinfo
+dist/*.js.map
 
 # Temp
 *.tmp
