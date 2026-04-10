@@ -1,0 +1,16 @@
+name: Greetings
+
+on: [pull_request_target, issues]
+
+jobs:
+  greeting:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+    - uses: actions/first-interaction@v1
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        issue-message: "Welcome to Apophasis! Thank you for opening your first issue. Since we’re all about automation skepticism, please provide as much context as possible—especially the specific mutation operators involved. We’ll take a look as soon as possible!"
+        pr-message: "First Pull Request? That’s fantastic! Welcome to the Apophasis project. 🚀 By helping us refine how we identify surviving mutants, you’re helping developers build more resilient software. One of our maintainers will review your code shortly!"
