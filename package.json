@@ -1,6 +1,6 @@
 {
   "name": "apophasis",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Reverse mutation testing for Playwright",
   "main": "dist/hook.js",
   "bin": {

@@ -23,7 +23,7 @@ Apophasis mutates the **test itself**, specifically:
 
 Unvalidated assertions are prone to `pass` both in their _positive_ and _negative_ forms:
 
-![Demo showing what happens when we invert unvalidated assertions](docs/demo.gif "Demo")
+![Demo showing what happens when we invert unvalidated assertions](https://raw.githubusercontent.com/silvaf-dev/apophasis/release/docs/demo.gif "Demo gif")
 
 ### What This Reveals
 
