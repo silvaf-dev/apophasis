@@ -3,9 +3,9 @@ import * as ModuleNamespace from 'module';
 /**
  * APOPHASIS MUTATOR
  * A metatesting utility for Playwright that inverts assertions in-memory.
- * 1. Robustness: Preventing infinite recursion in Proxies.
- * 2. Precision: Ensuring internal symbols and non-string props are bypassed.
- * 3. Scope: Only targeting the user-facing 'expect' API.
+ * Rule: 
+ * 1. From .not, to no .not
+ * 2. From no .not, to .not
  */
 
 const Module = (ModuleNamespace as any)?.default || ModuleNamespace;
@@ -15,38 +15,35 @@ if (!originalLoad) {
   throw new Error('Apophasis: Module._load is not available');
 }
 
-// Track proxies to prevent double-wrapping
-const proxyMap = new WeakSet();
-
 Module._load = function (request: string, parent: any, isMain: boolean) {
   const exports = originalLoad.apply(this, [request, parent, isMain]);
 
-  // 1. Environment Guard: Only mutate if explicitly enabled
+  // 1. Environment Guard
   const shouldMutate = process.env.APOPHASIS_MUTATE === 'true';
   if (!shouldMutate || typeof request !== 'string') {
     return exports;
   }
 
-  // 2. Targeted Injection: Only intercept Playwright's test/matchers logic
+  // 2. Targeted Injection
   if (request === '@playwright/test' || request.indexOf('playwright/lib/test') !== -1) {
     if (exports?.expect && !exports.expect._isApophasisMutated) {
       
       /**
-       * Creates a proxy around the matchers object (e.g., the object returned by expect(x))
+       * Creates a proxy around the matchers object.
+       * @param actualMatchers - The base matchers object.
+       * @param userWantsNot - State tracking if the user has already invoked .not
        */
-      const createMatchersProxy = (actualMatchers: any): any => {
-        if (!actualMatchers || typeof actualMatchers !== 'object' || proxyMap.has(actualMatchers)) {
+      const createMatchersProxy = (actualMatchers: any, userWantsNot = false): any => {
+        if (!actualMatchers || typeof actualMatchers !== 'object') {
           return actualMatchers;
         }
 
-        const matcherProxy = new Proxy(actualMatchers, {
+        return new Proxy(actualMatchers, {
           get(target, prop, receiver) {
-            // Bypass for internal symbols, async primitives, and housekeeping
+            // Bypass internal symbols and housekeeping
             if (
               typeof prop !== 'string' || 
-              prop === '$$typeof' || 
-              prop === 'asymmetricMatch' ||
-              ['then', 'catch', 'finally', 'constructor', 'toJSON'].includes(prop)
+              ['then', 'catch', 'finally', 'constructor', 'toJSON', 'asymmetricMatch', '$$typeof'].includes(prop)
             ) {
               return Reflect.get(target, prop, receiver);
             }
@@ -54,62 +51,67 @@ Module._load = function (request: string, parent: any, isMain: boolean) {
             // Handle Promise unwrapping for .resolves and .rejects
             if (prop === 'resolves' || prop === 'rejects') {
               const promiseMatchers = Reflect.get(target, prop, receiver);
-              return createMatchersProxy(promiseMatchers);
+              return createMatchersProxy(promiseMatchers, userWantsNot);
             }
 
-            // DO NOT intercept '.not' directly to avoid the "Inversion Paradox" 
-            // (We want to return the negated version of the call, not negate the negator)
+            // THE TOGGLE
             if (prop === 'not') {
-              return Reflect.get(target, prop, receiver);
+              // Flip the boolean: if user hit .not, we now flag to return the positive version
+              return createMatchersProxy(target, !userWantsNot);
             }
 
             const originalMatcher = Reflect.get(target, prop, receiver);
-            const negatedSet = Reflect.get(target, 'not');
+            if (typeof originalMatcher !== 'function') return originalMatcher;
 
-            // THE INVERSION LOGIC
-            // If the user calls expect(x).toBe(y), we return expect(x).not.toBe(y)
-            if (typeof originalMatcher === 'function' && negatedSet) {
-              const negatedMatcher = Reflect.get(negatedSet, prop);
-              if (typeof negatedMatcher === 'function') {
-                // Bind to negatedSet to ensure 'this.isNot' is true inside the Playwright matcher
-                return negatedMatcher.bind(negatedSet);
+            const negatedSet = target.not;
+
+            /**
+             * THE INVERSION LOGIC
+             */
+            if (userWantsNot) {
+              // RULE: From .not, to no .not
+              // User called expect(x).not.toBe(y) -> We return positive toBe(y)
+              return originalMatcher.bind(target);
+            } else {
+              // RULE: From no .not, to .not
+              // User called expect(x).toBe(y) -> We return negated not.toBe(y)
+              if (negatedSet) {
+                const negatedMatcher = Reflect.get(negatedSet, prop);
+                if (typeof negatedMatcher === 'function') {
+                  return negatedMatcher.bind(negatedSet);
+                }
               }
             }
 
             return originalMatcher;
           }
         });
-
-        proxyMap.add(matcherProxy);
-        return matcherProxy;
       };
 
       /**
        * The Main Expect Proxy
-       * Intercepts expect(), expect.soft(), and expect.poll()
        */
       const proxyExpect = new Proxy(exports.expect, {
         apply(target, thisArg, args) {
           const matchers = Reflect.apply(target, target, args);
-          return createMatchersProxy(matchers);
+          return createMatchersProxy(matchers, false);
         },
         get(target, prop, receiver) {
           if (prop === '_isApophasisMutated') return true;
 
           const value = Reflect.get(target, prop, receiver);
           
-          // Patch sub-methods that return matchers
           if (typeof value === 'function' && (prop === 'soft' || prop === 'poll')) {
             return (...args: any[]) => {
               const matchers = value.apply(target, args);
-              return createMatchersProxy(matchers);
+              return createMatchersProxy(matchers, false);
             };
           }
           return value;
         }
       });
 
-      // Safely replace the export
+      // Replace the export
       try {
         Object.defineProperty(exports, 'expect', {
           value: proxyExpect,
@@ -118,7 +120,6 @@ Module._load = function (request: string, parent: any, isMain: boolean) {
           writable: true
         });
       } catch (e) {
-        // Fallback for environments where exports might be frozen
         try { exports.expect = proxyExpect; } catch (inner) {}
       }
     }
