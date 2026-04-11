@@ -12,7 +12,7 @@ const isCI = !!process.env.CI || !!process.env.CONTINUOUS_INTEGRATION;
 // ----------------------
 function openFile(filePath: string) {
     if (isCI) {
-        console.log(`[CI] Skipping UI open for: ${filePath}`);
+        console.log(`\n[CI] Skipping UI open for: ${filePath}`);
         return;
     }
 
@@ -27,7 +27,7 @@ function openFile(filePath: string) {
             spawnSync('xdg-open', [filePath], { stdio: 'ignore' });
         }
     } catch (err) {
-        console.error(`Could not open file: ${(err as Error).message}`);
+        console.error(`\nCould not open file: ${(err as Error).message}`);
     }
 }
 
@@ -38,10 +38,10 @@ if (rawArgs.includes('report')) {
     const reportHtml = path.resolve(process.cwd(), 'apophasis-report', 'apophasis-report.html');
 
     if (fs.existsSync(reportHtml)) {
-        console.log('Opening report...');
+        console.log('\nOpening report...');
         openFile(reportHtml);
     } else {
-        console.error('❌ Report HTML not found at:', reportHtml);
+        console.error('\n❌ Report HTML not found at:', reportHtml);
     }
 
     process.exit(0);
@@ -240,7 +240,7 @@ if (parsedArgs.project) {
 // Baseline Execution (no mutation)
 // ----------------------
 if (parsedArgs.baseline) {
-    console.log('🧪 Running baseline Playwright (no mutation)...');
+    console.log('\n🧪 Running baseline Playwright (no mutation)...');
 
     const baselineResult = spawnSync('node', buildPlaywrightArgs(parsedArgs, false), {
         env: {
@@ -253,7 +253,7 @@ if (parsedArgs.baseline) {
     });
 
     if (!baselineResult.stdout) {
-        console.error('❌ No output from baseline run');
+        console.error('\n❌ No output from baseline run');
         process.exit(1);
     }
 
@@ -262,7 +262,7 @@ if (parsedArgs.baseline) {
     try {
         baselineJson = JSON.parse(baselineResult.stdout);
     } catch (e) {
-        console.error('❌ Failed to parse baseline JSON output');
+        console.error('\n❌ Failed to parse baseline JSON output');
         console.error(baselineResult.stdout);
         process.exit(1);
     }
@@ -327,9 +327,9 @@ if (parsedArgs.baseline) {
 // ----------------------
 // Mutation Execution
 // ----------------------
-console.log('\n🚀 Starting Apophasis Mutation Testing...');
+console.log('\n🚀 Running Apophasis Mutation Testing...');
 if (!parsedArgs.baseline)
-    console.warn('⚠️ Running without baseline validation. Results may be unreliable.');
+    console.warn('\n⚠️ Running without baseline validation. Results may be unreliable.');
 const testStart = process.hrtime.bigint();
 const result = spawnSync('node', playwrightArgs, {
     env: {
@@ -337,7 +337,7 @@ const result = spawnSync('node', playwrightArgs, {
         APOPHASIS_MUTATE: 'true',
         PLAYWRIGHT_JSON_OUTPUT_NAME: reportPath,
     },
-    stdio: 'inherit',
+    stdio: 'pipe', // change to inherit for debugging
     shell: false, // 🔒 critical
 });
 
@@ -345,13 +345,14 @@ const result = spawnSync('node', playwrightArgs, {
 // Exit Handling
 // ----------------------
 if (result.error) {
-    console.error('❌ Failed to launch Playwright:', result.error.message);
+    console.error('\n❌ Failed to launch Playwright:', result.error.message);
     process.exit(1);
 }
 
 if (typeof result.status === 'number') {
     if (result.status !== 0) {
-        console.warn(`Playwright exited with code ${result.status}`);
+        console.warn(`\nPlaywright failed successfully!`);
+        console.log('\n\nGenerating report...')
     }
 }
 
@@ -384,7 +385,7 @@ if (!fs.existsSync(reportPath) && fs.existsSync(defaultJsonPath)) {
 }
 
 if (!fs.existsSync(reportPath)) {
-    console.error(`❌ Mutation results not found at ${reportPath}`);
+    console.error(`\n❌ Mutation results not found at ${reportPath}`);
     process.exit(1);
 }
 
@@ -392,13 +393,13 @@ if (!fs.existsSync(reportPath)) {
 const processorPath = path.resolve(__dirname, 'processor.js');
 
 if (!fs.existsSync(processorPath)) {
-    console.error('❌ Processor file not found');
+    console.error('\n❌ Processor file not found');
     process.exit(1);
 }
 
 try {
     require(processorPath);
 } catch (e) {
-    console.error('❌ Mutation Processor failed:', e);
+    console.error('\n❌ Mutation Processor failed:', e);
     process.exit(1);
 }
