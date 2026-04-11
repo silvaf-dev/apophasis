@@ -19,7 +19,7 @@ Apophasis mutates the **test itself**, specifically:
 - Runs the mutated test
 - Detects **surviving mutations** (i.e., false negatives)
 
-### Problem Definition
+### Problem Statement
 
 Unvalidated assertions are prone to `pass` both in their _positive_ and _negative_ forms:
 
@@ -33,6 +33,7 @@ Apophasis exposes:
 - Implicit assumptions in E2E tests  
 - False negatives in UI validation  
 
+> Never trust a test you have not seen fail.
 
 ### Why 'false negatives' and not 'false positives'?
 
