@@ -100,8 +100,8 @@ const survived: any[] = [];
  */
 function stripAnsi(s: string): string {
     return s.replace(/\u001b\[[0-9;]*[mGKHF]/g, '')
-            .replace(/\u001b\][^\u0007]*\u0007/g, '')
-            .replace(/[\u0000-\u0008\u000b-\u001a\u001c-\u001f]/g, '');
+        .replace(/\u001b\][^\u0007]*\u0007/g, '')
+        .replace(/[\u0000-\u0008\u000b-\u001a\u001c-\u001f]/g, '');
 }
 
 /**
@@ -202,6 +202,10 @@ for (const suite of rootSuites) {
 // HTML generation
 // ----------------------
 
+// ----------------------
+// HTML generation
+// ----------------------
+
 const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -280,18 +284,56 @@ const htmlContent = `<!DOCTYPE html>
             vertical-align: top;
         }
 
-        th { background: var(--border); position: sticky; top: 0; }
+        /* Sorting Styles */
+        th { 
+            background: var(--border); 
+            position: sticky; 
+            top: 0; 
+            cursor: pointer; 
+            user-select: none;
+            transition: background 0.2s;
+        }
+        
+        th:hover { background: #4b5563; }
+
+        th::after {
+            content: ' ↕';
+            font-size: 0.8em;
+            color: var(--muted);
+            float: right;
+        }
+
+        th.sort-asc::after { content: ' ▲'; color: var(--accent); }
+        th.sort-desc::after { content: ' ▼'; color: var(--accent); }
 
         .file-path { color: var(--muted); font-family: monospace; font-size: 0.8em; word-break: break-all; }
 
+        /* Authentic Playwright Reporter Accents */
         .project-tag {
             display: inline-block;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.75em;
+            padding: 2px 12px;
+            border-radius: 9999px; /* Pill shape */
+            border: 1.5px solid var(--accent);
+            background-color: var(--bg);
             color: var(--accent);
-            border: 1px solid var(--accent);
-            white-space: nowrap;
+            font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .project-tag.chromium {
+            --accent: #5397e5; 
+            --bg: #0d1a2c;
+        }
+
+        .project-tag.firefox {
+            --accent: #bd9039;
+            --bg: #1e160a;
+        }
+
+        .project-tag.webkit {
+            --accent: #9d7bd8;
+            --bg: #1b122c;
         }
 
         code {
@@ -302,15 +344,6 @@ const htmlContent = `<!DOCTYPE html>
             word-break: break-word;
             display: block;
             margin-top: 3px;
-        }
-
-        code:first-child { margin-top: 0; }
-
-        @media (max-width: 600px) {
-            body { padding: 10px; }
-            .container { padding: 15px; }
-            h1 { font-size: 1.4rem; }
-            .card { padding: 15px; }
         }
     </style>
 </head>
@@ -332,18 +365,18 @@ const htmlContent = `<!DOCTYPE html>
         <h2>${survived.length > 0 ? '⚠️ Survivors Detected' : '✅ All Mutants Killed'}</h2>
 
         <div class="table-wrapper">
-            <table>
+            <table id="survivorsTable">
                 <thead>
                     <tr>
-                        <th>Project</th>
-                        <th>Test Title</th>
-                        <th>File Location</th>
+                        <th onclick="sortTable('survivorsTable', 0)">Project</th>
+                        <th onclick="sortTable('survivorsTable', 1)">Test Title</th>
+                        <th onclick="sortTable('survivorsTable', 2)">File Location</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${survived.map(s => `
                         <tr>
-                            <td><span class="project-tag">${escapeHtml(s.project)}</span></td>
+                            <td><span class="project-tag ${escapeHtml(s.project)}">${escapeHtml(s.project)}</span></td>
                             <td><strong>${escapeHtml(s.title)}</strong></td>
                             <td class="file-path">${escapeHtml(s.file)}:${s.line}</td>
                         </tr>
@@ -355,19 +388,19 @@ const htmlContent = `<!DOCTYPE html>
         <h2 style="margin-top: 40px;">💀 Killed Mutants Details</h2>
 
         <div class="table-wrapper">
-            <table>
+            <table id="killedTable">
                 <thead>
                     <tr>
-                        <th>Project</th>
-                        <th>Test Name</th>
-                        <th>Mutated Assertion(s)</th>
-                        <th>File Path</th>
+                        <th onclick="sortTable('killedTable', 0)">Project</th>
+                        <th onclick="sortTable('killedTable', 1)">Test Name</th>
+                        <th onclick="sortTable('killedTable', 2)">Mutated Assertion(s)</th>
+                        <th onclick="sortTable('killedTable', 3)">File Path</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${killed.map((k) => `
                         <tr>
-                            <td><span class="project-tag">${escapeHtml(k.project)}</span></td>
+                            <td><span class="project-tag ${escapeHtml(k.project)}">${escapeHtml(k.project)}</span></td>
                             <td>${escapeHtml(k.title)}</td>
                             <td>${k.mutatedAssertion}</td>
                             <td class="file-path">${escapeHtml(k.file)}:${k.line}</td>
@@ -377,6 +410,34 @@ const htmlContent = `<!DOCTYPE html>
             </table>
         </div>
     </div>
+
+    <script>
+        function sortTable(tableId, colIndex) {
+            const table = document.getElementById(tableId);
+            const tbody = table.tBodies[0];
+            const rows = Array.from(tbody.rows);
+            const header = table.querySelectorAll('th')[colIndex];
+            const isAscending = header.classList.contains('sort-asc');
+            
+            // Reset headers
+            table.querySelectorAll('th').forEach(th => th.classList.remove('sort-asc', 'sort-desc'));
+            
+            // Sort logic
+            const sortedRows = rows.sort((a, b) => {
+                const aColText = a.cells[colIndex].textContent.trim().toLowerCase();
+                const bColText = b.cells[colIndex].textContent.trim().toLowerCase();
+                
+                return isAscending 
+                    ? bColText.localeCompare(aColText, undefined, {numeric: true})
+                    : aColText.localeCompare(bColText, undefined, {numeric: true});
+            });
+
+            // Update UI
+            header.classList.add(isAscending ? 'sort-desc' : 'sort-asc');
+            while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+            tbody.append(...sortedRows);
+        }
+    </script>
 </body>
 </html>`;
 
